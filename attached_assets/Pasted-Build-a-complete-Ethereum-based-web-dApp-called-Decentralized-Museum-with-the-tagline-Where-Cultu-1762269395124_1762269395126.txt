@@ -1,0 +1,110 @@
+Build a complete Ethereum-based web dApp called “Decentralized Museum” with the tagline “Where Culture Meets Blockchain.”
+
+🧠 Concept
+
+The platform brings art, culture, and blockchain together. It allows artists to upload and mint artwork NFTs (stored on IPFS), and visitors to explore the virtual museum, buy tickets using crypto tokens, and join the DAO community to vote on which exhibits or events are added.
+
+🏗 Features & Workflow
+
+Home Page:
+
+Professional, clean hero section with title, tagline, short intro, and CTA buttons (“Enter Museum,” “Login,” “Join DAO”).
+
+Smooth animations, modern UI (TailwindCSS + Framer Motion).
+
+Login / Signup:
+
+Options: Login as Artist or Login as Visitor.
+
+Connect with MetaMask wallet.
+
+If logged in as a Visitor → show option “Join DAO.”
+
+Artist Dashboard:
+
+Upload artwork (image, title, description).
+
+Store artwork on IPFS.
+
+Mint an NFT using a Solidity smart contract.
+
+Track royalties and ownership.
+
+Visitor Dashboard:
+
+Explore museum gallery of all NFT artworks (images pulled from IPFS).
+
+Buy tickets using ERC-20 tokens (use a test token for this).
+
+Option to Join DAO → mints a governance token (ERC-20).
+
+Participate in DAO votes for new exhibits.
+
+DAO System:
+
+DAO smart contract using OpenZeppelin Governor + ERC-20 for voting power.
+
+Members can propose and vote on new exhibits/events.
+
+⚙️ Tech Stack
+
+Frontend: React.js + TailwindCSS + Framer Motion + Web3.js / Ethers.js
+
+Smart Contracts: Solidity + Hardhat
+
+Backend / API: Node.js + Express (for IPFS upload endpoints and metadata handling)
+
+Storage: IPFS (via Pinata or Web3.Storage)
+
+Wallet Integration: MetaMask
+
+Test Network: Sepolia Testnet (using Alchemy RPC)
+
+📁 Pages
+
+Home Page (intro + CTA)
+
+Museum Gallery Page (view NFTs)
+
+Artist Dashboard (upload + mint NFT)
+
+Visitor Dashboard (buy tickets + join DAO)
+
+DAO Governance Page (view proposals + vote)
+
+🧩 Smart Contracts
+
+NFT Contract (ERC-721): for art ownership + royalties.
+
+Token Contract (ERC-20): for ticket payments + DAO membership.
+
+DAO Contract (Governor): for proposals and votes.
+
+💄 Design Requirements
+
+Sleek, modern UI with a “digital museum” vibe — neutral background, elegant typography, art-gallery aesthetic.
+
+Smooth transitions, clean layouts, professional color palette (e.g., off-white, charcoal, gold accent).
+
+Include hover effects, cards, and responsive design.
+
+🔐 Environment Setup
+
+Include .env example for:
+
+SEPOLIA_RPC_URL=
+PRIVATE_KEY=
+PINATA_API_KEY=
+PINATA_SECRET_API_KEY=
+
+✅ Deliverables
+
+Fully functional project folder structure (frontend + smart contracts + backend).
+
+Working testnet deployment scripts.
+
+All UI pages linked and functional.
+
+DAO logic, NFT minting, and IPFS upload tested on Sepolia.
+
+Create professional-quality code and styling, production-level folder structure, and responsive design.
