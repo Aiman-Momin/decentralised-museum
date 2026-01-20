@@ -72,10 +72,15 @@ async function initializeApp() {
 // Export the app for serverless environments
 export { app };
 
-// For local development
-if (process.env.NODE_ENV === 'development' || process.env.VERCEL_ENV !== 'production') {
+// Initialize app immediately for both serverless and local
+initializeApp().catch(err => {
+  console.error('Failed to initialize app:', err);
+  process.exit(1);
+});
+
+// For local development - start the server
+if (process.env.NODE_ENV === 'development' || !process.env.VERCEL) {
   (async () => {
-    await initializeApp();
     // ALWAYS serve the app on the port specified in the environment variable PORT
     // Other ports are firewalled. Default to 5000 if not specified.
     // this serves both the API and the client.
