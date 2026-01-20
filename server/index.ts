@@ -1,6 +1,6 @@
 import express, { type Request, Response, NextFunction } from "express";
 import { registerRoutes } from "./routes";
-import { setupVite, serveStatic, log } from "./vite";
+import { log } from "./logger";
 
 const app = express();
 
@@ -70,11 +70,17 @@ app.use((err: any, req: Request, res: Response, _next: NextFunction) => {
   res.status(status).json({ message, error: message });
 });
 
-// Setup static file serving AFTER routes so routes take priority
+// Setup static file serving AFTER routes so routes take priority.
 // On Vercel, static assets are served by the platform, so we only
 // enable Express static serving when NOT running on Vercel.
 if (process.env.NODE_ENV !== 'development' && !process.env.VERCEL) {
-  serveStatic(app);
+  import("./vite")
+    .then(({ serveStatic }) => {
+      serveStatic(app);
+    })
+    .catch((err) => {
+      console.error("Failed to setup static file serving:", err);
+    });
 }
 
 // Export the app for serverless environments
@@ -84,11 +90,11 @@ export { app };
 if (process.env.NODE_ENV === 'development' || !process.env.VERCEL) {
   (async () => {
     try {
-      // Setup Vite for development
-      const { createServer: createViteServer } = await import('vite');
       const server = require('http').createServer(app);
       
       if (process.env.NODE_ENV === 'development') {
+        // Setup Vite for development (only import when needed)
+        const { setupVite } = await import('./vite');
         await setupVite(app, server);
       }
       
