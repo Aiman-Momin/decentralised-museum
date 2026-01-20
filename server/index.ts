@@ -71,7 +71,9 @@ app.use((err: any, req: Request, res: Response, _next: NextFunction) => {
 });
 
 // Setup static file serving AFTER routes so routes take priority
-if (process.env.NODE_ENV !== 'development') {
+// On Vercel, static assets are served by the platform, so we only
+// enable Express static serving when NOT running on Vercel.
+if (process.env.NODE_ENV !== 'development' && !process.env.VERCEL) {
   serveStatic(app);
 }
 
