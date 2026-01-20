@@ -9,6 +9,7 @@ declare module 'http' {
     rawBody: unknown
   }
 }
+
 app.use(express.json({
   verify: (req, _res, buf) => {
     req.rawBody = buf;
@@ -47,77 +48,55 @@ app.use((req, res, next) => {
 });
 
 let initialized = false;
-let initPromise: Promise<any> | null = null;
 
-async function initializeAppOnce() {
-  if (initialized) return;
-  if (initPromise) return initPromise;
-
-  initPromise = (async () => {
-    try {
-      const server = await registerRoutes(app);
-
-      app.use((err: any, req: Request, res: Response, _next: NextFunction) => {
-        const status = err.status || err.statusCode || 500;
-        const message = err.message || "Internal Server Error";
-
-        log(`ERROR ${req.method} ${req.path} ${status}: ${message}`);
-        console.error(err);
-
-        res.status(status).json({ message, error: message });
-      });
-
-      // only setup vite in development and after setting up all the other routes
-      if (app.get("env") === "development") {
-        await setupVite(app, server);
-      } else {
-        serveStatic(app);
-      }
-
-      initialized = true;
-      return server;
-    } catch (err) {
-      console.error('Failed to initialize app:', err);
-      initPromise = null;
-      throw err;
-    }
-  })();
-
-  return initPromise;
+// Initialize routes immediately (synchronously register them)
+try {
+  registerRoutes(app).catch(err => {
+    console.error('Failed to register routes:', err);
+  });
+  initialized = true;
+} catch (err) {
+  console.error('Error during route registration:', err);
 }
 
-// Middleware to ensure app is initialized before handling requests
-app.use(async (req, res, next) => {
-  try {
-    await initializeAppOnce();
-    next();
-  } catch (err) {
-    console.error('Initialization error:', err);
-    res.status(500).json({ error: 'Server initialization failed' });
-  }
+// Error handler - must come after all routes
+app.use((err: any, req: Request, res: Response, _next: NextFunction) => {
+  const status = err.status || err.statusCode || 500;
+  const message = err.message || "Internal Server Error";
+
+  log(`ERROR ${req.method} ${req.path} ${status}: ${message}`);
+  console.error('Full error:', err);
+
+  res.status(status).json({ message, error: message });
 });
+
+// Setup static file serving AFTER routes so routes take priority
+if (process.env.NODE_ENV !== 'development') {
+  serveStatic(app);
+}
 
 // Export the app for serverless environments
 export { app };
 
 // For local development - start the server
 if (process.env.NODE_ENV === 'development' || !process.env.VERCEL) {
-  const start = async () => {
+  (async () => {
     try {
-      await initializeAppOnce();
+      // Setup Vite for development
+      const { createServer: createViteServer } = await import('vite');
+      const server = require('http').createServer(app);
+      
+      if (process.env.NODE_ENV === 'development') {
+        await setupVite(app, server);
+      }
       
       const port = parseInt(process.env.PORT || '5000', 10);
-      const server = app.listen({
-        port,
-        host: "0.0.0.0",
-      }, () => {
+      server.listen(port, '0.0.0.0', () => {
         log(`serving on port ${port}`);
       });
     } catch (err) {
-      console.error('Failed to start server:', err);
+      console.error('Failed to start dev server:', err);
       process.exit(1);
     }
-  };
-  
-  start();
+  })();
 }
