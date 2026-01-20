@@ -56,6 +56,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
       // Get user info from server or create if new
       const response = await fetch(`/api/users/me/${address}`);
+      if (!response.ok) {
+        const errorText = await response.text();
+        throw new Error(`Server error: ${response.status} - ${errorText}`);
+      }
+      
       const userData = await response.json();
 
       const userObj = {
@@ -69,6 +74,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       localStorage.setItem('user', JSON.stringify(userObj));
     } catch (err: any) {
       setError(err.message || 'Failed to login with MetaMask');
+      console.error('Login error:', err);
     } finally {
       setIsLoading(false);
     }
@@ -97,7 +103,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         }),
       });
 
-      if (!response.ok) throw new Error('Failed to create account');
+      if (!response.ok) {
+        const errorText = await response.text();
+        throw new Error(`Failed to create account: ${response.status} - ${errorText}`);
+      }
 
       const userData = await response.json();
 
@@ -112,6 +121,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       localStorage.setItem('user', JSON.stringify(userObj));
     } catch (err: any) {
       setError(err.message || 'Failed to signup with MetaMask');
+      console.error('Signup error:', err);
     } finally {
       setIsLoading(false);
     }
