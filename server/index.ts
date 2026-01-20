@@ -74,25 +74,51 @@ async function initializeApp() {
 // Export the app for serverless environments
 export { app };
 
-// Initialize app immediately for both serverless and local
-initializeApp().catch(err => {
-  console.error('Failed to initialize app:', err);
-  process.exit(1);
+let initialized = false;
+let initPromise: Promise<any> | null = null;
+
+// Middleware to ensure app is initialized before handling requests
+app.use(async (req, res, next) => {
+  if (!initialized && !initPromise) {
+    initPromise = initializeApp()
+      .then(() => {
+        initialized = true;
+      })
+      .catch(err => {
+        console.error('Failed to initialize app:', err);
+        throw err;
+      });
+  }
+
+  if (initPromise) {
+    try {
+      await initPromise;
+    } catch (err) {
+      return res.status(500).json({ error: 'Server initialization failed' });
+    }
+  }
+
+  next();
 });
 
-// For local development - start the server
+// For local development - start the server after routes are registered
 if (process.env.NODE_ENV === 'development' || !process.env.VERCEL) {
-  (async () => {
-    // ALWAYS serve the app on the port specified in the environment variable PORT
-    // Other ports are firewalled. Default to 5000 if not specified.
-    // this serves both the API and the client.
-    // It is the only port that is not firewalled.
-    const port = parseInt(process.env.PORT || '5000', 10);
-    const server = app.listen({
-      port,
-      host: "0.0.0.0",
-    }, () => {
-      log(`serving on port ${port}`);
-    });
-  })();
+  const start = async () => {
+    try {
+      await initializeApp();
+      
+      const port = parseInt(process.env.PORT || '5000', 10);
+      const server = app.listen({
+        port,
+        host: "0.0.0.0",
+      }, () => {
+        log(`serving on port ${port}`);
+      });
+    } catch (err) {
+      console.error('Failed to start server:', err);
+      process.exit(1);
+    }
+  };
+  
+  start();
 }
