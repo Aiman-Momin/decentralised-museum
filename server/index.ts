@@ -1,108 +1,35 @@
 import express, { type Request, Response, NextFunction } from "express";
 import { registerRoutes } from "./routes";
-import { log } from "./logger";
 
 const app = express();
 
-declare module 'http' {
-  interface IncomingMessage {
-    rawBody: unknown
-  }
-}
-
-app.use(express.json({
-  verify: (req, _res, buf) => {
-    req.rawBody = buf;
-  }
-}));
+app.use(express.json());
 app.use(express.urlencoded({ extended: false }));
 
-app.use((req, res, next) => {
-  const start = Date.now();
-  const path = req.path;
-  let capturedJsonResponse: Record<string, any> | undefined = undefined;
+// Initialize routes
+registerRoutes(app);
 
-  const originalResJson = res.json;
-  res.json = function (bodyJson, ...args) {
-    capturedJsonResponse = bodyJson;
-    return originalResJson.apply(res, [bodyJson, ...args]);
-  };
-
-  res.on("finish", () => {
-    const duration = Date.now() - start;
-    if (path.startsWith("/api")) {
-      let logLine = `${req.method} ${path} ${res.statusCode} in ${duration}ms`;
-      if (capturedJsonResponse) {
-        logLine += ` :: ${JSON.stringify(capturedJsonResponse)}`;
-      }
-
-      if (logLine.length > 80) {
-        logLine = logLine.slice(0, 79) + "…";
-      }
-
-      log(logLine);
-    }
-  });
-
-  next();
-});
-
-// Initialize routes immediately (synchronously register them)
-// Routes must be registered before the app is exported for Vercel
-try {
-  registerRoutes(app);
-} catch (err) {
-  console.error('Error during route registration:', err);
-  // Don't throw - let the app export so we can see the error in Vercel logs
-}
-
-// Error handler - must come after all routes
+// Error handler
 app.use((err: any, req: Request, res: Response, _next: NextFunction) => {
-  const status = err.status || err.statusCode || 500;
-  const message = err.message || "Internal Server Error";
-
-  log(`ERROR ${req.method} ${req.path} ${status}: ${message}`);
-  console.error('Full error:', err);
-
-  res.status(status).json({ message, error: message });
+  console.error('Error:', err);
+  res.status(err.status || 500).json({ error: err.message || "Internal Server Error" });
 });
-
-// Setup static file serving AFTER routes so routes take priority.
-// On Vercel, static assets are served by the platform, so we only
-// enable Express static serving when NOT running on Vercel.
-if (process.env.NODE_ENV !== 'development' && !process.env.VERCEL) {
-  import("./vite")
-    .then(({ serveStatic }) => {
-      serveStatic(app);
-    })
-    .catch((err) => {
-      console.error("Failed to setup static file serving:", err);
-    });
-}
 
 // Export the app for serverless environments
 export { app };
 
-// For local development - start the server
-if (process.env.NODE_ENV === 'development' || !process.env.VERCEL) {
+// For local development only
+if (process.env.NODE_ENV === 'development' && !process.env.VERCEL) {
   (async () => {
     try {
       const { createServer } = await import('http');
       const server = createServer(app);
-      
-      if (process.env.NODE_ENV === 'development') {
-        // Setup Vite for development (only import when needed)
-        const { setupVite } = await import('./vite');
-        await setupVite(app, server);
-      }
-      
       const port = parseInt(process.env.PORT || '5000', 10);
       server.listen(port, '0.0.0.0', () => {
-        log(`serving on port ${port}`);
+        console.log(`Server running on port ${port}`);
       });
     } catch (err) {
       console.error('Failed to start dev server:', err);
-      process.exit(1);
     }
   })();
 }
