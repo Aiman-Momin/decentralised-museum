@@ -46,66 +46,65 @@ app.use((req, res, next) => {
   next();
 });
 
-async function initializeApp() {
-  const server = await registerRoutes(app);
+let initialized = false;
+let initPromise: Promise<any> | null = null;
 
-  app.use((err: any, req: Request, res: Response, _next: NextFunction) => {
-    const status = err.status || err.statusCode || 500;
-    const message = err.message || "Internal Server Error";
+async function initializeAppOnce() {
+  if (initialized) return;
+  if (initPromise) return initPromise;
 
-    log(`ERROR ${req.method} ${req.path} ${status}: ${message}`);
-    console.error(err);
+  initPromise = (async () => {
+    try {
+      const server = await registerRoutes(app);
 
-    res.status(status).json({ message, error: message });
-  });
+      app.use((err: any, req: Request, res: Response, _next: NextFunction) => {
+        const status = err.status || err.statusCode || 500;
+        const message = err.message || "Internal Server Error";
 
-  // importantly only setup vite in development and after
-  // setting up all the other routes so the catch-all route
-  // doesn't interfere with the other routes
-  if (app.get("env") === "development") {
-    await setupVite(app, server);
-  } else {
-    serveStatic(app);
-  }
+        log(`ERROR ${req.method} ${req.path} ${status}: ${message}`);
+        console.error(err);
 
-  return server;
+        res.status(status).json({ message, error: message });
+      });
+
+      // only setup vite in development and after setting up all the other routes
+      if (app.get("env") === "development") {
+        await setupVite(app, server);
+      } else {
+        serveStatic(app);
+      }
+
+      initialized = true;
+      return server;
+    } catch (err) {
+      console.error('Failed to initialize app:', err);
+      initPromise = null;
+      throw err;
+    }
+  })();
+
+  return initPromise;
 }
+
+// Middleware to ensure app is initialized before handling requests
+app.use(async (req, res, next) => {
+  try {
+    await initializeAppOnce();
+    next();
+  } catch (err) {
+    console.error('Initialization error:', err);
+    res.status(500).json({ error: 'Server initialization failed' });
+  }
+});
 
 // Export the app for serverless environments
 export { app };
 
-let initialized = false;
-let initPromise: Promise<any> | null = null;
-
-// Middleware to ensure app is initialized before handling requests
-app.use(async (req, res, next) => {
-  if (!initialized && !initPromise) {
-    initPromise = initializeApp()
-      .then(() => {
-        initialized = true;
-      })
-      .catch(err => {
-        console.error('Failed to initialize app:', err);
-        throw err;
-      });
-  }
-
-  if (initPromise) {
-    try {
-      await initPromise;
-    } catch (err) {
-      return res.status(500).json({ error: 'Server initialization failed' });
-    }
-  }
-
-  next();
-});
-
-// For local development - start the server after routes are registered
+// For local development - start the server
 if (process.env.NODE_ENV === 'development' || !process.env.VERCEL) {
   const start = async () => {
     try {
-      await initializeApp();
+      await initializeAppOnce();
       
       const port = parseInt(process.env.PORT || '5000', 10);
       const server = app.listen({
