@@ -222,7 +222,7 @@ export default function DaoGovernance() {
                         <div className="space-y-3">
                           <div className="space-y-1">
                             <div className="flex items-center justify-between text-sm">
-                              <span className="text-green-600 dark:text-green-400">For</span>
+                              <span className="text-primary">For</span>
                               <span className="font-mono">{proposal.votesFor} ({forPercentage.toFixed(1)}%)</span>
                             </div>
                             <Progress value={forPercentage} className="h-2" />

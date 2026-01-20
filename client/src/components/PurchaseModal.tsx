@@ -163,8 +163,8 @@ export function PurchaseModal({ artwork, isOpen, onClose }: PurchaseModalProps) 
                     className="space-y-4"
                   >
                     <div className="flex justify-center">
-                      <div className="inline-flex items-center justify-center w-16 h-16 rounded-full bg-green-100 dark:bg-green-950">
-                        <CheckCircle className="w-8 h-8 text-green-600" />
+                      <div className="inline-flex items-center justify-center w-16 h-16 rounded-full bg-primary/10 dark:bg-primary/20">
+                        <CheckCircle className="w-8 h-8 text-primary" />
                       </div>
                     </div>
 
@@ -199,7 +199,7 @@ export function PurchaseModal({ artwork, isOpen, onClose }: PurchaseModalProps) 
 
                     <Button
                       onClick={onClose}
-                      className="w-full bg-green-600 hover:bg-green-700 text-white"
+                      className="w-full bg-primary hover:bg-primary/90 text-primary-foreground"
                     >
                       Continue to Gallery
                     </Button>
