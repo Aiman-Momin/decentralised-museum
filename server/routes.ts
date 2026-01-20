@@ -411,6 +411,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // 404 handler for unmapped API routes
+  app.get("/api/*", (_req, res) => {
+    res.status(404).json({ error: "API endpoint not found" });
+  });
+
+  app.post("/api/*", (_req, res) => {
+    res.status(404).json({ error: "API endpoint not found" });
+  });
+
   const httpServer = createServer(app);
   return httpServer;
 }
