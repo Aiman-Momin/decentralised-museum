@@ -33,7 +33,7 @@ export function ProtectedRoute({ children, requiredRole }: ProtectedRouteProps) 
 
 interface UnauthorizedPageProps {
   requiredRole: string;
-  userRole: string;
+  userRole: string | null;
 }
 
 function UnauthorizedPage({ requiredRole, userRole }: UnauthorizedPageProps) {

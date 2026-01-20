@@ -104,6 +104,7 @@ export class MemStorage implements IStorage {
     const user: User = { 
       ...insertUser, 
       id,
+      isDaoMember: insertUser.isDaoMember ?? false,
       createdAt: new Date(),
     };
     this.users.set(id, user);
@@ -140,6 +141,11 @@ export class MemStorage implements IStorage {
     const artwork: Artwork = { 
       ...insertArtwork, 
       id,
+      artistName: insertArtwork.artistName ?? null,
+      imageData: insertArtwork.imageData ?? null,
+      contractAddress: insertArtwork.contractAddress ?? null,
+      price: insertArtwork.price ?? null,
+      royaltyPercentage: insertArtwork.royaltyPercentage ?? "5",
       mintedAt: new Date(),
     };
     this.artworks.set(id, artwork);
@@ -158,6 +164,7 @@ export class MemStorage implements IStorage {
     const ticket: Ticket = { 
       ...insertTicket, 
       id,
+      transactionHash: insertTicket.transactionHash ?? null,
       purchasedAt: new Date(),
     };
     this.tickets.set(id, ticket);
@@ -189,6 +196,7 @@ export class MemStorage implements IStorage {
       votesAgainst: 0,
       votesAbstain: 0,
       status: 'active',
+      startTime: insertProposal.startTime ?? new Date(),
       createdAt: new Date(),
     };
     this.proposals.set(id, proposal);

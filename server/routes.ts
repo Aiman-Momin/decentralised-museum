@@ -1,10 +1,18 @@
-import type { Express } from "express";
+import type { Express, Request } from "express";
 import { createServer, type Server } from "http";
 import { storage } from "./storage";
 import multer from "multer";
 import axios from "axios";
 import FormData from "form-data";
 import { insertArtworkSchema, insertTicketSchema, insertVoteSchema } from "@shared/schema";
+
+declare global {
+  namespace Express {
+    interface Request {
+      file?: Express.Multer.File;
+    }
+  }
+}
 
 const upload = multer({ storage: multer.memoryStorage() });
 
