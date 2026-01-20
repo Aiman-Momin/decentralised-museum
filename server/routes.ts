@@ -3,7 +3,7 @@ import { storage } from "./storage";
 import multer from "multer";
 import axios from "axios";
 import FormData from "form-data";
-import { insertArtworkSchema, insertTicketSchema, insertVoteSchema } from "@shared/schema";
+import { insertArtworkSchema, insertTicketSchema, insertVoteSchema } from "../shared/schema";
 
 declare global {
   namespace Express {

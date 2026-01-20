@@ -1,4 +1,4 @@
-import type { User, InsertUser, Artwork, InsertArtwork, Ticket, InsertTicket, Proposal, InsertProposal, Vote, InsertVote } from "@shared/schema";
+import type { User, InsertUser, Artwork, InsertArtwork, Ticket, InsertTicket, Proposal, InsertProposal, Vote, InsertVote } from "../shared/schema";
 import { randomUUID } from "crypto";
 
 export interface IStorage {
