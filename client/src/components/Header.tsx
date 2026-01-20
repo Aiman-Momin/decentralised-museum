@@ -1,22 +1,50 @@
 import { Link, useLocation } from 'wouter';
 import { WalletButton } from './WalletButton';
 import { Button } from '@/components/ui/button';
-import { Menu, X } from 'lucide-react';
+import { useAuth } from '@/lib/authContext';
+import { Menu, X, LogOut, User } from 'lucide-react';
 import { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 
 export function Header() {
   const [location] = useLocation();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const { user, logout } = useAuth();
 
-  const navItems = [
-    { path: '/', label: 'Home' },
-    { path: '/gallery', label: 'Gallery' },
-    { path: '/artist', label: 'Artist Portal' },
-    { path: '/visitor', label: 'Visitor Portal' },
-    { path: '/dao', label: 'DAO' },
-  ];
+  // Get nav items based on user role
+  const getNavItems = () => {
+    const baseItems = [{ path: '/', label: 'Home' }];
 
+    if (!user) return baseItems;
+
+    if (user.role === 'artist') {
+      return [
+        ...baseItems,
+        { path: '/gallery', label: 'Gallery' },
+        { path: '/artist', label: 'Artist Portal' },
+      ];
+    }
+
+    if (user.role === 'visitor') {
+      return [
+        ...baseItems,
+        { path: '/gallery', label: 'Gallery' },
+        { path: '/visitor', label: 'Visitor Portal' },
+      ];
+    }
+
+    if (user.role === 'dao-member') {
+      return [
+        ...baseItems,
+        { path: '/gallery', label: 'Gallery' },
+        { path: '/dao', label: 'DAO Governance' },
+      ];
+    }
+
+    return baseItems;
+  };
+
+  const navItems = getNavItems();
   const isActive = (path: string) => location === path;
 
   return (
@@ -48,6 +76,23 @@ export function Header() {
           </nav>
 
           <div className="flex items-center gap-2">
+            {user && (
+              <div className="hidden md:flex items-center gap-2">
+                <div className="text-sm text-muted-foreground px-3 py-1 rounded-md bg-accent/50 flex items-center gap-2">
+                  <User className="w-4 h-4" />
+                  <span className="capitalize">{user.role}</span>
+                </div>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={logout}
+                  className="text-destructive hover:text-destructive"
+                >
+                  <LogOut className="w-4 h-4 mr-2" />
+                  Logout
+                </Button>
+              </div>
+            )}
             <WalletButton />
             <Button
               variant="ghost"
@@ -83,6 +128,23 @@ export function Header() {
                   </Button>
                 </Link>
               ))}
+              {user && (
+                <>
+                  <div className="text-sm text-muted-foreground px-3 py-2 rounded-md bg-accent/50 flex items-center gap-2 mt-2">
+                    <User className="w-4 h-4" />
+                    <span className="capitalize">{user.role}</span>
+                  </div>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={logout}
+                    className="w-full text-destructive hover:text-destructive mt-2"
+                  >
+                    <LogOut className="w-4 h-4 mr-2" />
+                    Logout
+                  </Button>
+                </>
+              )}
             </nav>
           </motion.div>
         )}

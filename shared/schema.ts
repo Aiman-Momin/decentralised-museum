@@ -22,6 +22,7 @@ export const artworks = pgTable("artworks", {
   artistName: text("artist_name"),
   ipfsHash: text("ipfs_hash").notNull(), // IPFS CID for the artwork image
   metadataUri: text("metadata_uri").notNull(), // Full IPFS URI for metadata
+  imageData: text("image_data"), // Base64 encoded image data for local storage
   contractAddress: text("contract_address"),
   price: numeric("price"),
   royaltyPercentage: numeric("royalty_percentage").default("5"),

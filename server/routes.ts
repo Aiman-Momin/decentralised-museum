@@ -67,60 +67,88 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       const { title, description, price, royaltyPercentage, artistAddress } = req.body;
 
-      // Upload to Pinata IPFS
-      const formData = new FormData();
-      formData.append('file', req.file.buffer, {
-        filename: req.file.originalname,
-        contentType: req.file.mimetype,
-      });
+      // Check if Pinata credentials are available
+      const hasPinataCredentials = process.env.PINATA_API_KEY && 
+                                    process.env.PINATA_API_KEY.length > 20 &&
+                                    process.env.PINATA_SECRET_API_KEY;
 
-      const pinataMetadata = JSON.stringify({
-        name: `${title} - Decentralized Museum`,
-      });
-      formData.append('pinataMetadata', pinataMetadata);
+      let ipfsHash: string;
+      let metadataUri: string;
 
-      const pinataResponse = await axios.post(
-        'https://api.pinata.cloud/pinning/pinFileToIPFS',
-        formData,
-        {
-          headers: {
-            ...formData.getHeaders(),
-            'Authorization': `Bearer ${process.env.PINATA_API_KEY}`,
-          },
+      if (hasPinataCredentials) {
+        // Upload to Pinata IPFS
+        const formData = new FormData();
+        formData.append('file', req.file.buffer, {
+          filename: req.file.originalname,
+          contentType: req.file.mimetype,
+        });
+
+        const pinataMetadata = JSON.stringify({
+          name: `${title} - Decentralized Museum`,
+        });
+        formData.append('pinataMetadata', pinataMetadata);
+
+        try {
+          const pinataResponse = await axios.post(
+            'https://api.pinata.cloud/pinning/pinFileToIPFS',
+            formData,
+            {
+              headers: {
+                ...formData.getHeaders(),
+                'pinata_api_key': process.env.PINATA_API_KEY,
+                'pinata_secret_api_key': process.env.PINATA_SECRET_API_KEY,
+              },
+            }
+          );
+
+          ipfsHash = pinataResponse.data.IpfsHash;
+
+          // Create metadata JSON
+          const metadata = {
+            name: title,
+            description,
+            image: `ipfs://${ipfsHash}`,
+            attributes: [
+              { trait_type: "Artist", value: artistAddress },
+              { trait_type: "Price", value: price || "Not for sale" },
+              { trait_type: "Royalty", value: `${royaltyPercentage}%` },
+            ],
+          };
+
+          // Upload metadata to IPFS
+          const metadataResponse = await axios.post(
+            'https://api.pinata.cloud/pinning/pinJSONToIPFS',
+            metadata,
+            {
+              headers: {
+                'Content-Type': 'application/json',
+                'pinata_api_key': process.env.PINATA_API_KEY,
+                'pinata_secret_api_key': process.env.PINATA_SECRET_API_KEY,
+              },
+            }
+          );
+
+          metadataUri = `ipfs://${metadataResponse.data.IpfsHash}`;
+        } catch (pinataError: any) {
+          console.warn("Pinata upload failed, using local storage:", pinataError.response?.status);
+          // Fallback to local storage
+          ipfsHash = `local-${Date.now()}-${Math.random().toString(36).substring(7)}`;
+          metadataUri = `local-metadata-${Date.now()}-${Math.random().toString(36).substring(7)}`;
         }
-      );
-
-      const ipfsHash = pinataResponse.data.IpfsHash;
-
-      // Create metadata JSON
-      const metadata = {
-        name: title,
-        description,
-        image: `ipfs://${ipfsHash}`,
-        attributes: [
-          { trait_type: "Artist", value: artistAddress },
-          { trait_type: "Price", value: price || "Not for sale" },
-          { trait_type: "Royalty", value: `${royaltyPercentage}%` },
-        ],
-      };
-
-      // Upload metadata to IPFS
-      const metadataResponse = await axios.post(
-        'https://api.pinata.cloud/pinning/pinJSONToIPFS',
-        metadata,
-        {
-          headers: {
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${process.env.PINATA_API_KEY}`,
-          },
-        }
-      );
-
-      const metadataHash = metadataResponse.data.IpfsHash;
-      const metadataUri = `ipfs://${metadataHash}`;
+      } else {
+        // Use local storage for development when Pinata is not configured
+        console.log("Pinata credentials not configured, using local storage for images");
+        ipfsHash = `local-${Date.now()}-${Math.random().toString(36).substring(7)}`;
+        metadataUri = `local-metadata-${Date.now()}-${Math.random().toString(36).substring(7)}`;
+      }
 
       // Save to storage (in production, this would be after blockchain minting)
       const tokenId = `token-${Date.now()}-${Math.random().toString(36).substring(7)}`;
+      
+      // Store the image file data for local serving
+      const imageData = req.file.buffer.toString('base64');
+      const imageMimeType = req.file.mimetype;
+      const imageDataURI = `data:${imageMimeType};base64,${imageData}`;
       
       const artwork = await storage.createArtwork({
         tokenId,
@@ -130,9 +158,18 @@ export async function registerRoutes(app: Express): Promise<Server> {
         artistName: undefined,
         ipfsHash,
         metadataUri,
+        imageData: imageDataURI,
         contractAddress: undefined,
         price: price || undefined,
         royaltyPercentage: royaltyPercentage || "5",
+      });
+
+      // Also store image data for direct API access
+      (storage as any).imageFiles = (storage as any).imageFiles || new Map();
+      (storage as any).imageFiles.set(ipfsHash, {
+        data: imageData,
+        mimeType: imageMimeType,
+        filename: req.file.originalname,
       });
 
       res.json({
@@ -140,11 +177,69 @@ export async function registerRoutes(app: Express): Promise<Server> {
         artwork,
         ipfsHash,
         metadataUri,
-        message: "Artwork uploaded to IPFS successfully. Ready to mint NFT!",
+        message: "Artwork uploaded successfully. Ready to mint NFT!",
       });
     } catch (error: any) {
-      console.error("Upload error:", error);
-      res.status(500).json({ error: error.message || "Failed to upload artwork" });
+      console.error("Upload error:", error.response?.data || error.message || error);
+      res.status(500).json({ 
+        error: error.response?.data?.error || error.message || "Failed to upload artwork",
+        details: error.response?.data
+      });
+    }
+  });
+
+  // Image serving endpoint for local development
+  app.get("/api/images/:hash", async (req, res) => {
+    try {
+      const { hash } = req.params;
+      const imageStore = (storage as any).imageFiles || new Map();
+      
+      if (!imageStore.has(hash)) {
+        return res.status(404).json({ error: "Image not found" });
+      }
+
+      const imageData = imageStore.get(hash);
+      const buffer = Buffer.from(imageData.data, 'base64');
+      
+      res.set('Content-Type', imageData.mimeType);
+      res.set('Cache-Control', 'public, max-age=31536000');
+      res.send(buffer);
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  // Artwork Purchase route
+  app.post("/api/artworks/purchase", async (req, res) => {
+    try {
+      const { artworkId, buyerAddress, artistAddress, price, transactionHash } = req.body;
+
+      if (!artworkId || !buyerAddress || !artistAddress || !price || !transactionHash) {
+        return res.status(400).json({ error: "Missing required fields" });
+      }
+
+      // Record the purchase (in a real app, this would be stored in the database)
+      const purchase = {
+        artworkId,
+        buyerAddress,
+        artistAddress,
+        price,
+        transactionHash,
+        purchasedAt: new Date(),
+      };
+
+      // Store purchase in memory (in production, save to database)
+      (storage as any).purchases = (storage as any).purchases || [];
+      (storage as any).purchases.push(purchase);
+
+      res.json({
+        success: true,
+        purchase,
+        message: "Purchase recorded successfully",
+      });
+    } catch (error: any) {
+      console.error("Purchase recording error:", error);
+      res.status(500).json({ error: error.message || "Failed to record purchase" });
     }
   });
 
@@ -180,6 +275,28 @@ export async function registerRoutes(app: Express): Promise<Server> {
         success: true,
         ticket,
         message: "Ticket purchased successfully!",
+      });
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  // Check if visitor has valid gallery ticket
+  app.get("/api/tickets/check/:visitorAddress", async (req, res) => {
+    try {
+      const { visitorAddress } = req.params;
+
+      if (!visitorAddress) {
+        return res.status(400).json({ error: "Visitor address required" });
+      }
+
+      const hasTicket = await storage.hasValidTicket(visitorAddress);
+      const tickets = await storage.getTicketsByVisitor(visitorAddress);
+
+      res.json({
+        hasValidTicket: hasTicket,
+        ticketCount: tickets.length,
+        tickets: tickets,
       });
     } catch (error: any) {
       res.status(500).json({ error: error.message });

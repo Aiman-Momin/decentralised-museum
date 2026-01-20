@@ -17,6 +17,7 @@ export interface IStorage {
   // Ticket operations
   getTicketsByVisitor(visitorAddress: string): Promise<Ticket[]>;
   createTicket(ticket: InsertTicket): Promise<Ticket>;
+  hasValidTicket(visitorAddress: string): Promise<boolean>;
 
   // Proposal operations
   getAllProposals(): Promise<Proposal[]>;
@@ -161,6 +162,11 @@ export class MemStorage implements IStorage {
     };
     this.tickets.set(id, ticket);
     return ticket;
+  }
+
+  async hasValidTicket(visitorAddress: string): Promise<boolean> {
+    const tickets = await this.getTicketsByVisitor(visitorAddress);
+    return tickets.length > 0;
   }
 
   // Proposal operations

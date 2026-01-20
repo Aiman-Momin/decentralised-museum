@@ -345,9 +345,19 @@ export default function ArtistDashboard() {
                 <Card key={artwork.id} className="overflow-hidden" data-testid={`card-my-artwork-${index}`}>
                   <div className="aspect-[3/4] overflow-hidden">
                     <img
-                      src={`https://gateway.pinata.cloud/ipfs/${artwork.ipfsHash}`}
+                      src={artwork.imageData
+                        ? artwork.imageData
+                        : artwork.ipfsHash?.startsWith('local') 
+                        ? `/api/images/${artwork.ipfsHash}` 
+                        : artwork.ipfsHash 
+                        ? `https://gateway.pinata.cloud/ipfs/${artwork.ipfsHash}` 
+                        : ''}
                       alt={artwork.title}
                       className="w-full h-full object-cover"
+                      onError={(e) => {
+                        e.currentTarget.style.backgroundColor = '#f3f4f6';
+                        e.currentTarget.style.display = 'none';
+                      }}
                     />
                   </div>
                   <div className="p-4 space-y-2">

@@ -1,8 +1,12 @@
 import { useQuery } from '@tanstack/react-query';
+import { useState } from 'react';
 import { motion } from 'framer-motion';
 import { Card } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { Loader2, Image as ImageIcon } from 'lucide-react';
+import { Button } from '@/components/ui/button';
+import { Loader2, Image as ImageIcon, ShoppingCart } from 'lucide-react';
+import { PurchaseModal } from '@/components/PurchaseModal';
+import { useAuth } from '@/lib/authContext';
 import type { Artwork } from '@shared/schema';
 import placeholderNFT from '@assets/generated_images/Digital_art_placeholder_NFT_9c6cb210.png';
 
@@ -10,6 +14,14 @@ export default function Gallery() {
   const { data: artworks, isLoading } = useQuery<Artwork[]>({
     queryKey: ['/api/artworks'],
   });
+  const { user } = useAuth();
+  const [selectedArtwork, setSelectedArtwork] = useState<Artwork | null>(null);
+  const [isPurchaseModalOpen, setIsPurchaseModalOpen] = useState(false);
+
+  const handleBuyClick = (artwork: Artwork) => {
+    setSelectedArtwork(artwork);
+    setIsPurchaseModalOpen(true);
+  };
 
   return (
     <div className="min-h-screen py-16 md:py-24">
@@ -56,16 +68,25 @@ export default function Gallery() {
                 transition={{ duration: 0.4, delay: index * 0.05 }}
                 data-testid={`card-artwork-${index}`}
               >
-                <Card className="group overflow-hidden hover-elevate active-elevate-2 transition-all duration-300">
+                <Card className="group overflow-hidden hover-elevate active-elevate-2 transition-all duration-300 h-full flex flex-col">
                   <div className="aspect-[3/4] overflow-hidden rounded-t-lg">
                     <img
-                      src={artwork.ipfsHash ? `https://gateway.pinata.cloud/ipfs/${artwork.ipfsHash}` : placeholderNFT}
+                      src={artwork.imageData 
+                        ? artwork.imageData
+                        : artwork.ipfsHash?.startsWith('local') 
+                        ? `/api/images/${artwork.ipfsHash}` 
+                        : artwork.ipfsHash 
+                        ? `https://gateway.pinata.cloud/ipfs/${artwork.ipfsHash}` 
+                        : placeholderNFT}
                       alt={artwork.title}
                       className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105"
                       data-testid={`img-artwork-${index}`}
+                      onError={(e) => {
+                        e.currentTarget.src = placeholderNFT;
+                      }}
                     />
                   </div>
-                  <div className="p-6 space-y-3">
+                  <div className="p-6 space-y-3 flex flex-col flex-1">
                     <div className="flex items-start justify-between gap-2">
                       <h3 className="text-xl font-serif font-medium line-clamp-1" data-testid={`text-artwork-title-${index}`}>
                         {artwork.title}
@@ -83,14 +104,28 @@ export default function Gallery() {
                         {artwork.artistName || artwork.artistAddress}
                       </p>
                     </div>
-                    {artwork.price && (
-                      <div className="pt-2">
-                        <p className="text-sm font-medium">
-                          <span className="text-muted-foreground">Price: </span>
-                          <span className="font-mono" data-testid={`text-artwork-price-${index}`}>{artwork.price} ETH</span>
-                        </p>
-                      </div>
-                    )}
+                    <div className="pt-2 space-y-3 mt-auto">
+                      {artwork.price && (
+                        <div>
+                          <p className="text-sm font-medium">
+                            <span className="text-muted-foreground">Price: </span>
+                            <span className="font-mono" data-testid={`text-artwork-price-${index}`}>
+                              {artwork.price} ETH
+                            </span>
+                          </p>
+                        </div>
+                      )}
+                      {user?.role === 'visitor' && artwork.price && (
+                        <Button
+                          onClick={() => handleBuyClick(artwork)}
+                          className="w-full bg-primary text-primary-foreground font-semibold"
+                          data-testid={`btn-buy-artwork-${index}`}
+                        >
+                          <ShoppingCart className="w-4 h-4 mr-2" />
+                          Buy Now
+                        </Button>
+                      )}
+                    </div>
                   </div>
                 </Card>
               </motion.div>
@@ -98,6 +133,14 @@ export default function Gallery() {
           </div>
         )}
       </div>
+
+      {selectedArtwork && (
+        <PurchaseModal
+          artwork={selectedArtwork}
+          isOpen={isPurchaseModalOpen}
+          onClose={() => setIsPurchaseModalOpen(false)}
+        />
+      )}
     </div>
   );
 }
