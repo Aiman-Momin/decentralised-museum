@@ -1,5 +1,4 @@
 import type { Express, Request } from "express";
-import { createServer, type Server } from "http";
 import { storage } from "./storage";
 import multer from "multer";
 import axios from "axios";
@@ -16,7 +15,7 @@ declare global {
 
 const upload = multer({ storage: multer.memoryStorage() });
 
-export async function registerRoutes(app: Express): Promise<Server> {
+export function registerRoutes(app: Express): void {
   // User routes
   app.get("/api/users/me/:walletAddress", async (req, res) => {
     try {
@@ -419,7 +418,4 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.post("/api/*", (_req, res) => {
     res.status(404).json({ error: "API endpoint not found" });
   });
-
-  const httpServer = createServer(app);
-  return httpServer;
 }

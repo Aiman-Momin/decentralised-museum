@@ -47,16 +47,13 @@ app.use((req, res, next) => {
   next();
 });
 
-let initialized = false;
-
 // Initialize routes immediately (synchronously register them)
+// Routes must be registered before the app is exported for Vercel
 try {
-  registerRoutes(app).catch(err => {
-    console.error('Failed to register routes:', err);
-  });
-  initialized = true;
+  registerRoutes(app);
 } catch (err) {
   console.error('Error during route registration:', err);
+  // Don't throw - let the app export so we can see the error in Vercel logs
 }
 
 // Error handler - must come after all routes
@@ -90,7 +87,8 @@ export { app };
 if (process.env.NODE_ENV === 'development' || !process.env.VERCEL) {
   (async () => {
     try {
-      const server = require('http').createServer(app);
+      const { createServer } = await import('http');
+      const server = createServer(app);
       
       if (process.env.NODE_ENV === 'development') {
         // Setup Vite for development (only import when needed)
